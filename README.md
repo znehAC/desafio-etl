@@ -1,4 +1,4 @@
-# Desafio de Engenharia de Dados | API de Proposições Legislativas de Minas Gerais
+# Desafio de Engenharia de Dados | ETL de Proposições Legislativas
 
 Olá, candidato! Bem-vindo ao nosso desafio de engenharia de dados, que visa avaliar sua habilidade em manipular e processar dados de uma API e gerenciar um banco de dados de forma eficaz.
 
