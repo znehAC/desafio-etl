@@ -22,15 +22,28 @@ services:
       - POSTGRES_USER=${DB_USER}
       - POSTGRES_PASSWORD=${DB_PASS}
 
+  migration:
+    container_name: migration
+    build: .
+    command: sh -c "alembic upgrade head"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./src:/app
+    env_file:
+      - .env
+
   app:
     container_name: app
     build: .
-    command: sh -c "alembic upgrade head && python daily.py"
     ports:
       - 5000:5000
     depends_on:
       db:
         condition: service_healthy
+      migration:
+        condition: service_completed_successfully
     volumes:
       - ./src:/app
     env_file:
