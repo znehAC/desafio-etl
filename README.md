@@ -1,81 +1,91 @@
 # Desafio de Engenharia de Dados | ETL de Proposições Legislativas
 
-Olá, candidato! Bem-vindo ao nosso desafio de engenharia de dados, que visa avaliar sua habilidade em manipular e processar dados de uma API e gerenciar um banco de dados de forma eficaz.
+# Pipeline de Ingestão Diária de Dados
 
-## 🚀 Objetivo:
+## Visão Geral
 
-Desenvolver um pipeline de dados em Python para extrair informações sobre proposições legislativas do estado de Minas Gerais para o ano de 2023, realizar a limpeza necessária dos dados e carregá-los em um esquema de banco de dados relacional.
+Este projeto automatiza a extração diária, transformação e carga (ETL) de dados para um banco de dados PostgreSQL usando Python. Utiliza o Docker Compose para a orquestração de containers e garante a integridade dos dados através do SQLAlchemy e validação de esquema com marshmallow.
 
-## 💻 Tecnologias:
+## Funcionalidades
 
-- Python
-- Qualquer banco de dados relacional (PostgreSQL, MySQL, etc.)
+- **Docker Compose**: Orquestra múltiplos containers incluindo o banco de dados PostgreSQL e serviços da aplicação.
+- **Processo ETL Automatizado**: Extração diária de dados de uma API, transformação usando Pandas e validação de esquema com marshmallow, e carregamento no banco de dados.
+- **Integridade dos Dados**: Evita a inserção de dados duplicados no banco de dados.
+- **Agendamento**: Executa o processo ETL diariamente à meia-noite usando a biblioteca `schedule`.
+- **Tratamento de Erros**: Registra erros e tenta novamente operações falhas com um backoff exponencial.
+
+## Extrutura do projeto
+  ```
+  projeto/
+  │
+  ├── src/
+  │   ├── alembic/        (Configurações do alembic (migration))
+  │   ├── alembic.ini
+  │   │
+  │   ├── daily.py        (Script para execução diária do pipeline)
+  │   ├── etl.py          (Script com o código do pipeline)
+  │   ├── models.py       (Modelos para ORM com SQLAlchemy)
+  │
+  ├── .env                (Configurações)
+  ├── docker-compose.yml  
+  ├── Dockerfile
+  ├── requirements.txt    (Modulos requeridos do Python)
+```
+## Configuração
+
+### Pré-requisitos
+
 - Docker
+- Docker Compose 
+- Criar volume externo do database
+```bash
+docker volume create pg_base
+```
 
-## 📜 Requisitos do Projeto:
+### Exemplo de Configuração do Arquivo .env
 
-### 1. Extração de Dados:
+Crie um arquivo `.env` no diretório raiz do projeto e configure as variáveis de ambiente necessárias conforme o exemplo abaixo:
 
-- Acesse os dados por meio do endpoint da API: `https://dadosabertos.almg.gov.br/ws/proposicoes/pesquisa/direcionada?tp=1000&formato=json&ano=2023&ord=3`.
-- Consulte a [documentação](http://dadosabertos.almg.gov.br/ws/proposicoes/ajuda#Pesquisa%20Direcionada%20%C3%A0s%20Proposi%C3%A7%C3%B5es%20em%20Tramita%C3%A7%C3%A3o) da API para compreender os parâmetros e a estrutura dos dados disponíveis.
+```plaintext
+DB_NAME=database_name
+DB_HOST=db
+DB_PORT=5432
+DB_USER=user
+DB_PASS=password
 
-### 2. Limpeza de Dados:
+ETL_MAX_WORKERS=5
+ETL_ENGINE_POOL_SIZE=10
+ETL_RETRIES=3
+ETL_BACKOFF_FACTOR=0.3
+```
 
-- Remova espaçamentos desnecessários, caracteres especiais como "\n", e ajuste os formatos de data e texto conforme necessário.
+- `DB_NAME`: Nome do banco de dados PostgreSQL a ser utilizado.
+- `DB_HOST`: Endereço do host onde o banco de dados PostgreSQL está hospedado.
+- `DB_PORT`: Porta utilizada para se conectar ao banco de dados PostgreSQL.
+- `DB_USER`: Nome de usuário do banco de dados PostgreSQL.
+- `DB_PASS`: Senha do usuário do banco de dados PostgreSQL.
+- `ETL_MAX_WORKERS`: Número máximo de workers para processamento paralelo durante a extração de dados.
+- `ETL_ENGINE_POOL_SIZE`: Tamanho máximo do pool de conexões do SQLAlchemy para o banco de dados.
+- `ETL_RETRIES`: Número de tentativas de recuperação em caso de falha durante a extração de dados.
+- `ETL_BACKOFF_FACTOR`: Fator de backoff exponencial para intervalo de espera entre tentativas de recuperação.
 
-### 3. Carregamento de Dados:
+### Configuração de automação
 
-- Carregue os dados limpos em um banco de dados relacional seguindo o esquema abaixo.
+No arquivo daily.py é possível adicionar datas (schedules) para a atualização
 
-### 4. Dockerização:
+```
+schedule.every().day.at("00:00").do(daily_job)
+```
 
-- Dockerize a aplicação e o banco de dados para garantir a portabilidade e fácil configuração do ambiente de desenvolvimento e produção.
+### Comandos Úteis
+- Para iniciar o projeto com Docker Compose:
+```bash
+docker compose up -d
+```
+- Executar a pipeline ETL manualmente
+```bash
+docker exec -it app python etl.py
+```
 
-## Esquema de Banco de Dados:
-
-### Tabela: Proposição
-| Campo            | Tipo      | Descrição                                                                                         |
-|------------------|-----------|---------------------------------------------------------------------------------------------------|
-| id               | Incremental| ID automático                                                                                    |
-| author           | String    | Autor da proposição, ex. "Governador Romeu Zema Neto"                                             |
-| presentationDate | Timestamp | Data de apresentação da proposição, ex. "2022-10-06T00:00:00Z"                                    |
-| ementa           | String    | Assunto da proposição, ex. "Encaminha o Projeto de Lei 4008 2022..."                              |
-| regime           | String    | Regime de tramitação da proposição, ex. "Especial"                                                |
-| situation        | String    | Situação atual da proposição, ex. "Publicado"                                                     |
-| propositionType  | String    | Tipo da proposição, ex. "MSG"                                                                     |
-| number           | String    | Número da proposição, ex. "300"                                                                   |
-| year             | Integer   | Ano da proposição, ex. 2022                                                                       |
-| city             | String    | Cidade fixa "Belo Horizonte"                                                                      |
-| state            | String    | Estado fixo "Minas Gerais"                                                                        |
-
-### Tabela: Tramitação
-| Campo            | Tipo         | Descrição                                                                                         |
-|------------------|--------------|---------------------------------------------------------------------------------------------------|
-| id               | Incremental  | ID automático                                                                                     |
-| createdAt        | Timestamp    | Data do registro da tramitação, ex. "2022-10-04T00:00:00Z"                                        |
-| description      | String       | Descrição do histórico da tramitação, ex. "Proposição lida em Plenário.\nPublicada no DL..."      |
-| local            | String       | Local da tramitação, ex. "Plenário"                                                               |
-| propositionId    | ForeignKey   | Chave estrangeira que referencia o ID da proposição                                               |
-
-## 🥇 Diferenciais:
-
-- Uso de Docker Compose para orquestração de múltiplos containers.
-- Documentação clara do processo de configuração e execução do pipeline.
-- Implementação de testes para validar a integridade dos dados.
-- Evitar a inserção de dados duplicados no banco.
-- Script de ingestão diária dos dados (atualizados).
-
-## 🗳️ Instruções de Submissão:
-
-1. Faça um fork deste repositório para sua conta pessoal do GitHub.
-2. Commit e push suas mudanças para o seu fork.
-3. Envie um e-mail para [brenno.natal@khipo.com.br] com o link do repositório.
-
-## 🧪 Avaliação:
-
-- Estrutura do código e organização.
-- Uso adequado das ferramentas e tecnologias.
-- Implementação dos requisitos do projeto.
-- Otimização de performance.
-
-Boa sorte com o desafio! Estamos ansiosos para ver sua solução.
+#### Informações de contato
+- **Email:** adrianocesar321@gmail.com
